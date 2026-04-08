@@ -29,6 +29,7 @@ jobs:
       - name: Run Pytest
         run: |
           cd services/collector
-          # This runs all tests in the tests/ folder
+          # This tells Python to look for your code in the current folder
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest
+          # We use "python -m pytest" because it is more reliable
+          python -m pytest
