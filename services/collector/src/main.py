@@ -6,19 +6,21 @@ import requests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# CoinCap uses IDs like 'bitcoin' or 'ethereum'
+# CoinGecko uses IDs like 'bitcoin'
 SYMBOL = os.getenv("SYMBOL", "bitcoin")
 FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", 10))
-# New API URL
-API_URL = f"https://api.coincap.io/v2/assets/{SYMBOL}"
+# New robust URL
+API_URL = f"https://api.coingecko.com/api/v3/simple/price?ids={SYMBOL}&vs_currencies=usd"
 
 def fetch_price():
     try:
-        response = requests.get(API_URL, timeout=5)
+        # We try to call the API
+        response = requests.get(API_URL, timeout=10)
         response.raise_for_status()
         data = response.json()
-        # CoinCap structure is data -> priceUsd
-        price = data['data']['priceUsd']
+        
+        # CoinGecko returns: {"bitcoin": {"usd": 65000.00}}
+        price = str(data[SYMBOL]['usd'])
         logger.info(f"Successfully fetched {SYMBOL} price: {price}")
         return price
     except Exception as e:
