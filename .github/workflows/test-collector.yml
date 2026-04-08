@@ -1,0 +1,34 @@
+name: Test Collector Service
+
+on:
+  push:
+    paths:
+      - 'services/collector/**' # Only run when code in this service changes
+  pull_request:
+    paths:
+      - 'services/collector/**'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          cd services/collector
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest
+        run: |
+          cd services/collector
+          # This runs all tests in the tests/ folder
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest
