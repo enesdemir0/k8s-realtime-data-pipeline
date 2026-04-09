@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: dashboard
-        image: yourusername/k8s-dashboard:latest
+        image: enesdemir09/k8s-dashboard:latest
         env:
         - name: DB_HOST
           value: "postgres-service"
