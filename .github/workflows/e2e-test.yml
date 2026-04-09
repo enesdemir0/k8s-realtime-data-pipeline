@@ -26,26 +26,36 @@ jobs:
       - name: Deploy Infrastructure (Redis)
         run: |
           kubectl apply -f k8s/redis/redis-deployment.yaml
-          # Give Redis a moment to start
-          kubectl wait --for=condition=ready pod -l app=redis --timeout=60s
+          # Wait until Redis is actually ready to accept connections
+          kubectl wait --for=condition=ready pod -l app=redis --timeout=90s
 
-      - name: Deploy Collector
+      - name: Deploy Collector (Service A)
         run: |
-          # We use the image from DockerHub that was just built
           kubectl apply -f k8s/deployments/collector-deployment.yaml
           
-      - name: Wait for Collector and Check Logs
+      - name: Deploy Processor (Service C)
         run: |
-          # Wait 30 seconds for the first fetch to happen
-          sleep 30
+          kubectl apply -f k8s/deployments/processor-deployment.yaml
+          
+      - name: Verify Full Data Pipeline
+        run: |
+          # We wait 90 seconds to ensure:
+          # 1. Collector fetches from CoinGecko
+          # 2. Collector pushes to Redis
+          # 3. Processor pulls from Redis
+          echo "Waiting for data to flow through the pipeline..."
+          sleep 90
+          
+          echo "--- Current Pod Status ---"
           kubectl get pods
           
-          # Check if collector is running
-          STATUS=$(kubectl get pods -l app=collector -o jsonpath='{.items[0].status.phase}')
-          if [ "$STATUS" != "Running" ]; then
-            echo "Collector is not running!"
-            exit 1
-          fi
-
-          # Look for the 'Stored' message in logs
-          kubectl logs -l app=collector | grep "Stored"
+          echo "--- Collector Logs ---"
+          kubectl logs -l app=collector --tail=20
+          
+          echo "--- Processor Logs ---"
+          kubectl logs -l app=processor --tail=20
+          
+          # This is the "PASS/FAIL" check. 
+          # It looks for "received" or "TREND" in the Processor's logs.
+          # If it doesn't find them, the whole GitHub Action will fail.
+          kubectl logs -l app=processor | grep -E "received|TREND"
