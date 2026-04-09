@@ -2,57 +2,75 @@ import os
 import time
 import logging
 import redis
+import psycopg2 # New import
 
-# 1. Setup Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 2. Configuration
+# Config
 REDIS_HOST = os.getenv("REDIS_HOST", "redis-service")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-PROCESS_INTERVAL = int(os.getenv("PROCESS_INTERVAL", 30))
+DB_HOST = os.getenv("DB_HOST", "postgres-service")
+DB_NAME = os.getenv("DB_NAME", "cryptodb")
+DB_USER = os.getenv("DB_USER", "user")
+DB_PASS = os.getenv("DB_PASS", "password")
+
+def init_db():
+    while True:
+        try:
+            conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS prices (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(10),
+                    price FLOAT,
+                    trend VARCHAR(10),
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            cur.close()
+            conn.close()
+            logger.info("Postgres Database initialized.")
+            break
+        except Exception as e:
+            logger.error(f"Waiting for Postgres... {e}")
+            time.sleep(5)
+
+def save_to_db(symbol, price, trend):
+    try:
+        conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO prices (symbol, price, trend) VALUES (%s, %s, %s)",
+            (symbol, price, trend)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info(f"Saved to Postgres: {symbol} at {price} ({trend})")
+    except Exception as e:
+        logger.error(f"Failed to save to Postgres: {e}")
 
 def main():
-    logger.info("Starting Processor Service...")
-    
-    # Connect to Redis
-    try:
-        cache = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-        logger.info(f"Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
-    except Exception as e:
-        logger.error(f"Redis connection error: {e}")
-        return
-
+    init_db()
+    cache = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
     last_price = None
 
     while True:
-        try:
-            # 3. Pull data from Redis
-            current_price = cache.get("latest_price")
+        current_price = cache.get("latest_price")
+        if current_price:
+            current_price = float(current_price)
+            trend = "STABLE"
+            if last_price is not None:
+                if current_price > last_price: trend = "UP"
+                elif current_price < last_price: trend = "DOWN"
             
-            if current_price:
-                current_price = float(current_price)
-                
-                if last_price is not None:
-                    # 4. Calculate the difference
-                    diff = current_price - last_price
-                    if diff > 0:
-                        logger.info(f"TREND: 📈 UP | Price: {current_price} | Change: +{diff:.2f}")
-                    elif diff < 0:
-                        logger.info(f"TREND: 📉 DOWN | Price: {current_price} | Change: {diff:.2f}")
-                    else:
-                        logger.info(f"TREND: ➖ STABLE | Price: {current_price}")
-                else:
-                    logger.info(f"First price received: {current_price}")
-                
-                last_price = current_price
-            else:
-                logger.warning("No data found in Redis yet. Waiting...")
-
-        except Exception as e:
-            logger.error(f"Error in processing: {e}")
-
-        time.sleep(PROCESS_INTERVAL)
+            # SAVE TO DATABASE
+            save_to_db("bitcoin", current_price, trend)
+            last_price = current_price
+            
+        time.sleep(30)
 
 if __name__ == "__main__":
     main()

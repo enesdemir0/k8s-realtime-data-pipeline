@@ -14,13 +14,13 @@ spec:
     spec:
       containers:
       - name: collector
-        image: enesdemir09/k8s-collector:latest # Change this!
+        image: enesdemir09/k8s-collector:latest 
         imagePullPolicy: IfNotPresent # Tells K8s to use the image we just "loaded"
         env:
         - name: SYMBOL
           value: "bitcoin"
-        - name: FETCH_INTERVAL  # Bu satırı ekle
-          value: "60"           # Bu değeri 60 yap
+        - name: FETCH_INTERVAL  
+          value: "60"           
         - name: REDIS_HOST
           value: "redis-service"
         resources:
