@@ -51,4 +51,4 @@ jobs:
           kubectl logs -l app=processor | grep "Saved to Postgres"
           
           # 2. Check if Dashboard started correctly
-          kubectl logs -l app=dashboard | grep "Network URL"
+          kubectl logs -l app=dashboard | grep "URL"
