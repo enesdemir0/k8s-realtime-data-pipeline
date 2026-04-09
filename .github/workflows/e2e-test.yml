@@ -28,34 +28,34 @@ jobs:
           kubectl apply -f k8s/redis/redis-deployment.yaml
           # Wait until Redis is actually ready to accept connections
           kubectl wait --for=condition=ready pod -l app=redis --timeout=90s
+          
+      - name: Deploy Postgres (Database)
+        run: |
+          # 1. Apply Storage first
+          kubectl apply -f k8s/postgres/postgres-storage.yaml
+          # 2. Apply the Database and Service
+          kubectl apply -f k8s/postgres/postgres-deployment.yaml
+          # 3. Wait for the database to be ready
+          kubectl wait --for=condition=ready pod -l app=postgres --timeout=90s
 
       - name: Deploy Collector (Service A)
         run: |
           kubectl apply -f k8s/deployments/collector-deployment.yaml
-          
+
       - name: Deploy Processor (Service C)
         run: |
           kubectl apply -f k8s/deployments/processor-deployment.yaml
-          
+
       - name: Verify Full Data Pipeline
         run: |
-          # We wait 90 seconds to ensure:
-          # 1. Collector fetches from CoinGecko
-          # 2. Collector pushes to Redis
-          # 3. Processor pulls from Redis
-          echo "Waiting for data to flow through the pipeline..."
+          # Wait 90 seconds for data to flow
           sleep 90
           
           echo "--- Current Pod Status ---"
           kubectl get pods
           
-          echo "--- Collector Logs ---"
-          kubectl logs -l app=collector --tail=20
-          
           echo "--- Processor Logs ---"
-          kubectl logs -l app=processor --tail=20
+          kubectl logs -l app=processor --tail=50
           
-          # This is the "PASS/FAIL" check. 
-          # It looks for "received" or "TREND" in the Processor's logs.
-          # If it doesn't find them, the whole GitHub Action will fail.
-          kubectl logs -l app=processor | grep -E "received|TREND"
+          # The NEW check: Look for the Postgres save message
+          kubectl logs -l app=processor | grep "Saved to Postgres"
