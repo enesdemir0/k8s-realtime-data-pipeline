@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 SYMBOL = os.getenv("SYMBOL", "bitcoin")
-FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", 10))
+FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", 60))
 API_URL = f"https://api.coingecko.com/api/v3/simple/price?ids={SYMBOL}&vs_currencies=usd"
 
 # 1. Connect to Redis
