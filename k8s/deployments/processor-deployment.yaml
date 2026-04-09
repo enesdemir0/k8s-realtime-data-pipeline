@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processor-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: processor
+  template:
+    metadata:
+      labels:
+        app: processor
+    spec:
+      containers:
+      - name: processor
+        image: enesdemir09/k8s-processor:latest 
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: PROCESS_INTERVAL
+          value: "30"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
