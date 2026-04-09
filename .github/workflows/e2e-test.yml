@@ -1,0 +1,51 @@
+name: E2E Kubernetes Smoke Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create KIND Cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.24.0"
+
+      - name: Verify Cluster is Up
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy Infrastructure (Redis)
+        run: |
+          kubectl apply -f k8s/redis/redis-deployment.yaml
+          # Give Redis a moment to start
+          kubectl wait --for=condition=ready pod -l app=redis --timeout=60s
+
+      - name: Deploy Collector
+        run: |
+          # We use the image from DockerHub that was just built
+          kubectl apply -f k8s/deployments/collector-deployment.yaml
+          
+      - name: Wait for Collector and Check Logs
+        run: |
+          # Wait 30 seconds for the first fetch to happen
+          sleep 30
+          kubectl get pods
+          
+          # Check if collector is running
+          STATUS=$(kubectl get pods -l app=collector -o jsonpath='{.items[0].status.phase}')
+          if [ "$STATUS" != "Running" ]; then
+            echo "Collector is not running!"
+            exit 1
+          fi
+
+          # Look for the 'Stored' message in logs
+          kubectl logs -l app=collector | grep "Stored"
