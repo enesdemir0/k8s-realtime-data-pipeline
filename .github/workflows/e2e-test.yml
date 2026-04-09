@@ -3,8 +3,6 @@ name: E2E Kubernetes Smoke Test
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   smoke-test:
@@ -18,44 +16,39 @@ jobs:
         with:
           version: "v0.24.0"
 
-      - name: Verify Cluster is Up
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
       - name: Deploy Infrastructure (Redis)
         run: |
           kubectl apply -f k8s/redis/redis-deployment.yaml
-          # Wait until Redis is actually ready to accept connections
           kubectl wait --for=condition=ready pod -l app=redis --timeout=90s
-          
+
       - name: Deploy Postgres (Database)
         run: |
-          # 1. Apply Storage first
-          kubectl apply -f k8s/postgres/postgres-storage.yaml
-          # 2. Apply the Database and Service
-          kubectl apply -f k8s/postgres/postgres-deployment.yaml
-          # 3. Wait for the database to be ready
+          kubectl apply -f k8s/postgres/
           kubectl wait --for=condition=ready pod -l app=postgres --timeout=90s
 
-      - name: Deploy Collector (Service A)
+      - name: Deploy Microservices (Custom Apps)
         run: |
           kubectl apply -f k8s/deployments/collector-deployment.yaml
-
-      - name: Deploy Processor (Service C)
-        run: |
           kubectl apply -f k8s/deployments/processor-deployment.yaml
-
+          kubectl apply -f k8s/deployments/dashboard-deployment.yaml
+          
       - name: Verify Full Data Pipeline
         run: |
-          # Wait 90 seconds for data to flow
-          sleep 90
+          # We wait 120 seconds because Dashboard and Processor need more time
+          echo "Waiting for data to flow through the pipeline..."
+          sleep 120
           
           echo "--- Current Pod Status ---"
           kubectl get pods
           
           echo "--- Processor Logs ---"
-          kubectl logs -l app=processor --tail=50
+          kubectl logs -l app=processor --tail=20
           
-          # The NEW check: Look for the Postgres save message
+          echo "--- Dashboard Logs ---"
+          kubectl logs -l app=dashboard --tail=20
+          
+          # 1. Check if Processor successfully saved to Postgres
           kubectl logs -l app=processor | grep "Saved to Postgres"
+          
+          # 2. Check if Dashboard started correctly
+          kubectl logs -l app=dashboard | grep "Network URL"
