@@ -68,8 +68,10 @@ Start Cluster:
 Load Images:  
 ```
 .\kind.exe load docker-image enesdemir09/k8s-collector:latest --name project
+.\kind.exe load docker-image enesdemir09/k8s-processor:latest --name project
+.\kind.exe load docker-image enesdemir09/k8s-dashboard:latest --name project
 ```
-(repeat for all images)
+
 
 Deploy:  
 ```
