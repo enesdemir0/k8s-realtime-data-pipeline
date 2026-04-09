@@ -25,3 +25,23 @@ jobs:
           context: ./services/collector
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/k8s-collector:latest
+
+  
+  build-processor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Processor
+        uses: docker/build-push-action@v4
+        with:
+          context: ./services/processor
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/k8s-processor:latest
